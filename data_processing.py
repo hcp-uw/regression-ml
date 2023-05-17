@@ -6,18 +6,18 @@ from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.preprocessing import LabelEncoder
 
 # Load the CSV file using Pandas
-df = pd.read_csv('Datasets/Reddit_Data.csv')
+df = pd.read_csv('../../../PycharmProjects/regression-ml-data/Datasets/Reddit_Data.csv')
 
 # Preprocess the data
 comments = df['clean_comment'].values.astype(str).tolist()
 categories = df['category'].values.astype(str).tolist()
 
 # Tokenize the comments using CountVectorizer
-#  - fit_transform() tokenizes text data by converting a colleciton of documents into
+#  - fit_transform() tokenizes text data by converting a collection of documents into
 #    a sparse matrix of token/word counts that only stores non-zero values 
 #  - toarray() converts the sparse matrix into a dense numpy array representation
 vectorizer = CountVectorizer()
-tokenized_comments = vectorizer.fit_transform(comments)
+tokenized_comments = vectorizer.fit_transform(comments).toarray()
 
 # Encode the categories using LabelEncoder
 #  - fit_transform() returns a new numpy array where each label is replaced 
@@ -32,7 +32,7 @@ class MyDataset(Dataset):
 
     # Returns number of comments/samples 
     def __len__(self):
-        return len(self.tokenized_comments)
+        return self.tokenized_comments.shape[0]
 
     # Returns encoded sentiment category for a given input comment
     def __getitem__(self, idx):
@@ -43,9 +43,9 @@ class MyDataset(Dataset):
 # Create a PyTorch data loader to easily input into a neural network model
 # batch_size is number of batches to split our dataset into for 
 # processing
-batch_size = 32
+batch_size = 16
 dataset = MyDataset(tokenized_comments, encoded_categories)
-data_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
+data_loader = DataLoader(dataset=dataset, batch_size=batch_size, shuffle=True)
 
 class LSTMClassifier(nn.Module):
     def __init__(self, input_dim, embedding_dim, hidden_dim, output_dim):
@@ -84,9 +84,10 @@ optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 for epoch in range(num_epochs):
     for batch in data_loader:
         x, y = batch
+        x = torch.transpose(x, 0, 1)
         print(x)
         optimizer.zero_grad()
-        output = model(x.permute(1, 0, 2))
+        output = model(x)
         loss = criterion(output, y.squeeze().long())
         loss.backward()
         optimizer.step()
